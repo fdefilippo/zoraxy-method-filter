@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3b82c4"/>
+      <stop offset="1" stop-color="#1f4f86"/>
+    </linearGradient>
+  </defs>
+  <rect x="16" y="16" width="480" height="480" rx="104" fill="url(#bg)"/>
+  <!-- requests coming in: two pass, one is refused -->
+  <circle cx="168" cy="96" r="20" fill="#ffffff"/>
+  <circle cx="256" cy="96" r="20" fill="#ffffff"/>
+  <circle cx="344" cy="96" r="20" fill="#ff8a7a"/>
+  <!-- funnel -->
+  <path d="M96 152 H416 a16 16 0 0 1 12.6 25.9 L304 336 V424 a16 16 0 0 1 -24.6 13.5 l-56 -36 A16 16 0 0 1 216 388 V336 L83.4 177.9 A16 16 0 0 1 96 152 Z" fill="#ffffff"/>
+  <!-- allowed mark inside the funnel -->
+  <path d="M206 222 l36 36 l66 -70" fill="none" stroke="#1f4f86" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
