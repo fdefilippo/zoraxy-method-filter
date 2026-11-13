@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="zoraxy.csrf.Token" content="{{.csrfToken}}">
+<title>HTTP Method Filter</title>
+<style>
+  :root {
+    --bg: #ffffff; --panel: #f7f8fa; --line: #dfe3e8; --text: #1f2933; --muted: #66727f;
+    --accent: #2b6cb0; --accent-text: #ffffff; --ok: #1e7e45; --warn: #9a6700; --bad: #b42318;
+    --warn-bg: #fff6dd; --bad-bg: #fdecea; --chip: #e9edf2;
+  }
+  :root.dark {
+    --bg: #1b1d21; --panel: #24272c; --line: #3a3f47; --text: #e6e9ed; --muted: #9aa5b1;
+    --accent: #63a4e8; --accent-text: #10151b; --ok: #5fd08a; --warn: #e3b341; --bad: #ff8a80;
+    --warn-bg: #3a3116; --bad-bg: #40201d; --chip: #343941;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 16px; background: var(--bg); color: var(--text);
+         font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  p.lead { margin: 0 0 14px; color: var(--muted); max-width: 70ch; }
+  code { background: var(--chip); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+  .banner { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin: 0 0 12px; }
+  .banner.warn { background: var(--warn-bg); border-color: var(--warn); }
+  .banner.bad { background: var(--bad-bg); border-color: var(--bad); }
+  .host { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); padding: 12px 14px; margin: 0 0 10px; }
+  .host.off { opacity: .8; }
+  .head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+  .name { font-weight: 600; font-size: 15px; overflow-wrap: anywhere; }
+  .aliases { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+  .chip { display: inline-block; background: var(--chip); border-radius: 999px; padding: 1px 8px; font-size: 12px; white-space: nowrap; }
+  .chip.ok { color: var(--ok); } .chip.warn { color: var(--warn); } .chip.bad { color: var(--bad); }
+  .spacer { flex: 1 1 auto; }
+  label.switch { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; cursor: pointer; }
+  .body { margin-top: 10px; display: grid; gap: 10px; }
+  .body[hidden] { display: none; }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
+  .row > .lbl { flex: 0 0 130px; color: var(--muted); }
+  .methods { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+  .methods label, .row label { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; white-space: nowrap; }
+  input[type=text], select { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; font: inherit; }
+  input[type=text] { width: min(100%, 300px); }
+  input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--accent); }
+  .stats { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+  .bar { position: sticky; bottom: 0; background: var(--bg); border-top: 1px solid var(--line); padding: 10px 0 2px; margin-top: 14px;
+         display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  button { font: inherit; border-radius: 6px; padding: 7px 16px; cursor: pointer; border: 1px solid var(--line); background: var(--panel); color: var(--text); }
+  button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 600; }
+  button:disabled { opacity: .5; cursor: default; }
+  button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #msg { font-size: 13px; } #msg.ok { color: var(--ok); } #msg.bad { color: var(--bad); }
+  @media (max-width: 560px) { .row > .lbl { flex-basis: 100%; } }
+</style>
+</head>
+<body>
+<h1>HTTP Method Filter</h1>
+<p class="lead">Choose, for each proxy host, which HTTP methods may reach the upstream. Any other method is answered by this plugin and never forwarded.</p>
+
+<div id="tagnote" class="banner"></div>
+<div id="error" class="banner bad" hidden></div>
+<div id="hosts"></div>
+
+<div class="bar">
+  <button id="save" class="primary" disabled>Save changes</button>
+  <button id="reload">Reload</button>
+  <span id="msg" role="status"></span>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  // Follow the theme of the Zoraxy panel this page is embedded in.
+  try {
+    var dark = parent !== window && parent.document.body.classList.contains("darkTheme");
+    if (dark || (parent === window && matchMedia("(prefers-color-scheme: dark)").matches)) {
+      document.documentElement.classList.add("dark");
+    }
+  } catch (e) { /* cross-origin parent: keep the light theme */ }
+
+  var csrf = document.querySelector('meta[name="zoraxy.csrf.Token"]').content;
+  var state = null, dirty = false;
+  var $ = function (id) { return document.getElementById(id); };
+
+  function el(tag, attrs, children) {
+    var n = document.createElement(tag);
+    Object.keys(attrs || {}).forEach(function (k) {
+      if (k === "text") n.textContent = attrs[k];
+      else if (k === "class") n.className = attrs[k];
+      else if (k in n && typeof attrs[k] !== "string") n[k] = attrs[k];
+      else n.setAttribute(k, attrs[k]);
+    });
+    (children || []).forEach(function (c) { if (c) n.appendChild(c); });
+    return n;
+  }
+
+  function setDirty(v) {
+    dirty = v;
+    $("save").disabled = !v;
+    if (v) setMsg("Unsaved changes", "");
+  }
+  function setMsg(text, cls) { $("msg").textContent = text; $("msg").className = cls; }
+
+  function ago(unix) {
+    if (!unix) return "";
+    var s = Math.max(0, Math.round(Date.now() / 1000 - unix));
+    if (s < 90) return s + " s ago";
+    if (s < 5400) return Math.round(s / 60) + " min ago";
+    if (s < 129600) return Math.round(s / 3600) + " h ago";
+    return Math.round(s / 86400) + " d ago";
+  }
+
+  function renderHost(h) {
+    var std = state.standard_methods;
+    var extra = h.rule.methods.filter(function (m) { return std.indexOf(m) < 0; });
+    var id = "h-" + h.domain.replace(/[^a-z0-9]/gi, "_");
+
+    var enabled = el("input", { type: "checkbox", checked: h.rule.enabled, id: id + "-on" });
+    var body = el("div", { class: "body" });
+    body.hidden = !h.rule.enabled;
+
+    var methodBoxes = std.map(function (m) {
+      var cb = el("input", { type: "checkbox", checked: h.rule.methods.indexOf(m) >= 0, value: m });
+      cb.addEventListener("change", function () { setDirty(true); });
+      return { m: m, cb: cb, label: el("label", {}, [cb, el("span", { text: m })]) };
+    });
+    var extraIn = el("input", { type: "text", value: extra.join(", "), placeholder: "e.g. PROPFIND, MKCOL", "aria-label": "Other allowed methods for " + h.domain });
+    var http10 = el("input", { type: "checkbox", checked: h.rule.block_http10 });
+    var status = el("select", { "aria-label": "Answer for refused requests on " + h.domain },
+      [[405, "405 Method Not Allowed"], [403, "403 Forbidden"], [400, "400 Bad Request"], [404, "404 Not Found"]].map(function (o) {
+        var opt = el("option", { value: String(o[0]), text: o[1] });
+        opt.selected = h.rule.status === o[0];
+        return opt;
+      }));
+    [extraIn, http10, status].forEach(function (i) {
+      i.addEventListener("input", function () { setDirty(true); });
+      i.addEventListener("change", function () { setDirty(true); });
+    });
+    enabled.addEventListener("change", function () { body.hidden = !enabled.checked; setDirty(true); });
+
+    // Collects the rule of this card when saving.
+    h.collect = function () {
+      var methods = methodBoxes.filter(function (b) { return b.cb.checked; }).map(function (b) { return b.m; });
+      extraIn.value.split(/[\s,]+/).forEach(function (m) { if (m) methods.push(m.toUpperCase()); });
+      return { enabled: enabled.checked, methods: methods, block_http10: http10.checked, status: parseInt(status.value, 10) };
+    };
+    h.touched = function () { return h.has_rule || enabled.checked; };
+
+    body.appendChild(el("div", { class: "row" }, [el("span", { class: "lbl", text: "Allowed methods" }),
+      el("div", { class: "methods" }, methodBoxes.map(function (b) { return b.label; }))]));
+    body.appendChild(el("div", { class: "row" }, [el("span", { class: "lbl", text: "Other methods" }), extraIn]));
+    body.appendChild(el("div", { class: "row" }, [el("span", { class: "lbl", text: "Refused requests" }), status,
+      el("label", {}, [http10, el("span", { text: "also refuse HTTP/1.0" })])]));
+
+    var chips = [];
+    if (!h.known) chips.push(el("span", { class: "chip bad", text: "host no longer in Zoraxy" }));
+    if (h.disabled) chips.push(el("span", { class: "chip", text: "host disabled" }));
+    var st = h.stats;
+    if (h.rule.enabled && h.known && !h.disabled) {
+      chips.push(st && st.last_seen
+        ? el("span", { class: "chip ok", text: "filtering · last request " + ago(st.last_seen) })
+        : el("span", { class: "chip warn", text: "no request seen yet — check the host tag" }));
+    }
+    (h.tags || []).forEach(function (t) { chips.push(el("span", { class: "chip", text: "tag: " + t })); });
+
+    var statsLine = null;
+    if (st) {
+      statsLine = el("div", { class: "stats", text: "Since plugin start: " + st.allowed + " passed, " + st.blocked + " refused" +
+        (st.last_blocked ? " · last refused: " + st.last_blocked : "") });
+    }
+
+    return el("section", { class: "host" + (h.rule.enabled ? "" : " off"), "aria-label": h.domain }, [
+      el("div", { class: "head" }, [
+        el("div", {}, [
+          el("div", { class: "name", text: h.domain }),
+          (h.aliases && h.aliases.length) ? el("div", { class: "aliases", text: "aliases: " + h.aliases.join(", ") }) : null
+        ]),
+        el("div", {}, chips),
+        el("span", { class: "spacer" }),
+        el("label", { class: "switch", for: id + "-on" }, [enabled, el("span", { text: "Filter methods" })])
+      ]),
+      body,
+      statsLine
+    ]);
+  }
+
+  function render() {
+    var box = $("hosts");
+    box.textContent = "";
+    $("error").hidden = !state.hosts_error;
+    $("error").textContent = state.hosts_error ? "Could not read the host list from Zoraxy (existing rules keep working): " + state.hosts_error : "";
+    var note = $("tagnote");
+    note.textContent = "";
+    note.appendChild(document.createTextNode("Zoraxy sends a host's requests to this plugin only if the host carries a tag this plugin is attached to. " +
+      "Attach the plugin to a tag (Plugins → groups; suggested tag: "));
+    note.appendChild(el("code", { text: state.suggested_tag }));
+    note.appendChild(document.createTextNode(") and add that tag to each host you filter here."));
+    if (!state.hosts.length) box.appendChild(el("p", { class: "lead", text: "No proxy hosts found." }));
+    state.hosts.forEach(function (h) { box.appendChild(renderHost(h)); });
+  }
+
+  function load() {
+    return fetch("api/state", { credentials: "same-origin" })
+      .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+      .then(function (s) { state = s; render(); setDirty(false); setMsg("", ""); })
+      .catch(function (e) { setMsg("Cannot load: " + e.message, "bad"); });
+  }
+
+  $("save").addEventListener("click", function () {
+    var rules = {};
+    state.hosts.forEach(function (h) { if (h.touched()) rules[h.domain] = h.collect(); });
+    $("save").disabled = true;
+    fetch("api/save", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
+      body: JSON.stringify({ rules: rules })
+    }).then(function (r) { return r.json().catch(function () { return { error: "HTTP " + r.status }; }); })
+      .then(function (res) {
+        if (res.error) { setMsg("Not saved: " + res.error, "bad"); $("save").disabled = false; return; }
+        return load().then(function () { setMsg("Saved — rules are active now", "ok"); });
+      })
+      .catch(function (e) { setMsg("Not saved: " + e.message, "bad"); $("save").disabled = false; });
+  });
+  $("reload").addEventListener("click", function () {
+    if (!dirty || confirm("Discard unsaved changes?")) load();
+  });
+  window.addEventListener("beforeunload", function (e) { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
+
+  load();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+{
+ "id": "org.defilippo.zoraxy.methodfilter",
+ "name": "HTTP Method Filter",
+ "author": "Defilippo srl",
+ "author_contact": "info@defilippo.org",
+ "description": "Per-host allow-list of HTTP methods (and optional HTTP/1.0 block), configured from the UI. Add the plugin to a tag and put that tag on the hosts to filter.",
+ "url": "https://github.com/fdefilippo/zoraxy-method-filter",
+ "type": 0,
+ "version_major": 1,
+ "version_minor": 0,
+ "version_patch": 0,
+ "static_capture_paths": null,
+ "static_capture_ingress": "",
+ "dynamic_capture_sniff": "/d_sniff",
+ "dynamic_capture_ingress": "/d_capture",
+ "ui_path": "/ui",
+ "subscription_path": "",
+ "subscriptions_events": null,
+ "permitted_api_endpoints": [
+  {
+   "method": "POST",
+   "endpoint": "/plugin/api/proxy/list",
+   "reason": "List the proxy hosts (names, aliases, tags) so a method rule can be set for each of them"
+  }
+ ]
+}
