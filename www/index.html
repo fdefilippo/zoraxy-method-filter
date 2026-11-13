@@ -23,35 +23,43 @@
   p.lead { margin: 0 0 14px; color: var(--muted); max-width: 70ch; }
   code { background: var(--chip); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
   .banner { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin: 0 0 12px; }
-  .banner.warn { background: var(--warn-bg); border-color: var(--warn); }
   .banner.bad { background: var(--bad-bg); border-color: var(--bad); }
-  .host { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); padding: 12px 14px; margin: 0 0 10px; }
-  .host.off { opacity: .8; }
-  .head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
-  .name { font-weight: 600; font-size: 15px; overflow-wrap: anywhere; }
+  .tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin: 0 0 10px; }
+  .tools input[type=search] { flex: 1 1 240px; max-width: 420px; }
+  #count { color: var(--muted); font-size: 13px; }
+  .host { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); margin: 0 0 6px; }
+  .host.changed { border-color: var(--accent); }
+  .head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; width: 100%; padding: 9px 12px;
+          background: none; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: 8px; }
+  .head .caret { flex: 0 0 auto; width: 12px; color: var(--muted); }
+  .name { font-weight: 600; overflow-wrap: anywhere; }
   .aliases { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+  .summary { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+  .summary.on { color: var(--text); }
   .chip { display: inline-block; background: var(--chip); border-radius: 999px; padding: 1px 8px; font-size: 12px; white-space: nowrap; }
   .chip.ok { color: var(--ok); } .chip.warn { color: var(--warn); } .chip.bad { color: var(--bad); }
   .spacer { flex: 1 1 auto; }
-  label.switch { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; cursor: pointer; }
-  .body { margin-top: 10px; display: grid; gap: 10px; }
-  .body[hidden] { display: none; }
+  .body { padding: 2px 12px 12px 36px; display: grid; gap: 10px; }
   .row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
   .row > .lbl { flex: 0 0 130px; color: var(--muted); }
   .methods { display: flex; flex-wrap: wrap; gap: 4px 12px; }
-  .methods label, .row label { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; white-space: nowrap; }
-  input[type=text], select { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; font: inherit; }
+  .row label { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; white-space: nowrap; }
+  label.switch { font-weight: 600; }
+  input[type=text], input[type=search], select { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; font: inherit; }
   input[type=text] { width: min(100%, 300px); }
   input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--accent); }
+  fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 10px; min-width: 0; }
+  fieldset:disabled { opacity: .55; }
   .stats { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
   .bar { position: sticky; bottom: 0; background: var(--bg); border-top: 1px solid var(--line); padding: 10px 0 2px; margin-top: 14px;
          display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-  button { font: inherit; border-radius: 6px; padding: 7px 16px; cursor: pointer; border: 1px solid var(--line); background: var(--panel); color: var(--text); }
+  button.btn { font: inherit; border-radius: 6px; padding: 7px 16px; cursor: pointer; border: 1px solid var(--line); background: var(--panel); color: var(--text); }
   button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 600; }
   button:disabled { opacity: .5; cursor: default; }
   button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #more { margin: 6px 0 0; }
   #msg { font-size: 13px; } #msg.ok { color: var(--ok); } #msg.bad { color: var(--bad); }
-  @media (max-width: 560px) { .row > .lbl { flex-basis: 100%; } }
+  @media (max-width: 560px) { .row > .lbl { flex-basis: 100%; } .body { padding-left: 12px; } }
 </style>
 </head>
 <body>
@@ -60,27 +68,44 @@
 
 <div id="tagnote" class="banner"></div>
 <div id="error" class="banner bad" hidden></div>
+
+<div class="tools">
+  <input type="search" id="q" placeholder="Search host, alias or tag…" aria-label="Search hosts" autocomplete="off">
+  <select id="show" aria-label="Which hosts to show">
+    <option value="all">All hosts</option>
+    <option value="on">Filtered</option>
+    <option value="off">Not filtered</option>
+    <option value="attention">Needs attention</option>
+    <option value="changed">Unsaved changes</option>
+  </select>
+  <span id="count" role="status"></span>
+</div>
+
 <div id="hosts"></div>
+<button id="more" class="btn" hidden>Show more</button>
 
 <div class="bar">
-  <button id="save" class="primary" disabled>Save changes</button>
-  <button id="reload">Reload</button>
+  <button id="save" class="btn primary" disabled>Save changes</button>
+  <button id="reload" class="btn">Reload</button>
   <span id="msg" role="status"></span>
 </div>
 
 <script>
+// Zoraxy calls this on plugin pages when the user switches theme.
+function setDarkTheme(dark) { document.documentElement.classList.toggle("dark", !!dark); }
+
 (function () {
   "use strict";
-  // Follow the theme of the Zoraxy panel this page is embedded in.
+  // Start with the theme of the Zoraxy panel this page is embedded in.
   try {
-    var dark = parent !== window && parent.document.body.classList.contains("darkTheme");
-    if (dark || (parent === window && matchMedia("(prefers-color-scheme: dark)").matches)) {
-      document.documentElement.classList.add("dark");
-    }
+    if (parent !== window) setDarkTheme(parent.document.body.classList.contains("darkTheme"));
+    else setDarkTheme(matchMedia("(prefers-color-scheme: dark)").matches);
   } catch (e) { /* cross-origin parent: keep the light theme */ }
 
+  var PAGE = 50;                       // hosts rendered per step; the rest is reached by search or "Show more"
   var csrf = document.querySelector('meta[name="zoraxy.csrf.Token"]').content;
-  var state = null, dirty = false;
+  var state = null, shown = PAGE;
+  var open = {};                       // domain -> true for expanded hosts
   var $ = function (id) { return document.getElementById(id); };
 
   function el(tag, attrs, children) {
@@ -95,15 +120,23 @@
     return n;
   }
 
-  function setDirty(v) {
-    dirty = v;
-    $("save").disabled = !v;
-    if (v) setMsg("Unsaved changes", "");
-  }
   function setMsg(text, cls) { $("msg").textContent = text; $("msg").className = cls; }
+  function ruleKey(r) { return JSON.stringify([r.enabled, r.methods.slice().sort(), !!r.block_http10, r.status]); }
+  function isChanged(h) { return ruleKey(h.rule) !== h.orig; }
+  function changedCount() { return state ? state.hosts.filter(isChanged).length : 0; }
+  function needsAttention(h) {
+    if (!h.known) return true;
+    return h.rule.enabled && !h.disabled && !(h.stats && h.stats.last_seen);
+  }
+
+  function refreshBar() {
+    var n = changedCount();
+    $("save").disabled = n === 0;
+    if (n) setMsg(n + " host" + (n > 1 ? "s" : "") + " with unsaved changes", "");
+    else if ($("msg").className === "") setMsg("", "");
+  }
 
   function ago(unix) {
-    if (!unix) return "";
     var s = Math.max(0, Math.round(Date.now() / 1000 - unix));
     if (s < 90) return s + " s ago";
     if (s < 5400) return Math.round(s / 60) + " min ago";
@@ -111,105 +144,151 @@
     return Math.round(s / 86400) + " d ago";
   }
 
-  function renderHost(h) {
-    var std = state.standard_methods;
-    var extra = h.rule.methods.filter(function (m) { return std.indexOf(m) < 0; });
-    var id = "h-" + h.domain.replace(/[^a-z0-9]/gi, "_");
+  function summary(h) {
+    if (!h.rule.enabled) return "not filtered";
+    return h.rule.methods.join(", ") + (h.rule.block_http10 ? " · no HTTP/1.0" : "") + " · else " + h.rule.status;
+  }
 
-    var enabled = el("input", { type: "checkbox", checked: h.rule.enabled, id: id + "-on" });
-    var body = el("div", { class: "body" });
-    body.hidden = !h.rule.enabled;
+  function matches(h, words, show) {
+    if (show === "on" && !h.rule.enabled) return false;
+    if (show === "off" && h.rule.enabled) return false;
+    if (show === "attention" && !needsAttention(h)) return false;
+    if (show === "changed" && !isChanged(h)) return false;
+    if (!words.length) return true;
+    var hay = (h.domain + " " + (h.aliases || []).join(" ") + " " + (h.tags || []).join(" ")).toLowerCase();
+    return words.every(function (w) { return hay.indexOf(w) >= 0; });
+  }
 
-    var methodBoxes = std.map(function (m) {
-      var cb = el("input", { type: "checkbox", checked: h.rule.methods.indexOf(m) >= 0, value: m });
-      cb.addEventListener("change", function () { setDirty(true); });
-      return { m: m, cb: cb, label: el("label", {}, [cb, el("span", { text: m })]) };
+  // Editor of one host; built only when the host is expanded.
+  function renderEditor(h, onChange) {
+    var std = state.standard_methods, r = h.rule;
+    var fields = el("fieldset", {});
+    fields.disabled = !r.enabled;
+
+    var enabled = el("input", { type: "checkbox", checked: r.enabled });
+    enabled.addEventListener("change", function () { r.enabled = enabled.checked; fields.disabled = !r.enabled; onChange(); });
+
+    var extraIn = el("input", { type: "text", placeholder: "e.g. PROPFIND, MKCOL", "aria-label": "Other allowed methods for " + h.domain,
+      value: r.methods.filter(function (m) { return std.indexOf(m) < 0; }).join(", ") });
+    var boxes = std.map(function (m) {
+      var cb = el("input", { type: "checkbox", checked: r.methods.indexOf(m) >= 0, value: m });
+      cb.addEventListener("change", sync);
+      return cb;
     });
-    var extraIn = el("input", { type: "text", value: extra.join(", "), placeholder: "e.g. PROPFIND, MKCOL", "aria-label": "Other allowed methods for " + h.domain });
-    var http10 = el("input", { type: "checkbox", checked: h.rule.block_http10 });
+    function sync() {
+      var methods = boxes.filter(function (b) { return b.checked; }).map(function (b) { return b.value; });
+      extraIn.value.split(/[\s,]+/).forEach(function (m) {
+        m = m.toUpperCase();
+        if (m && methods.indexOf(m) < 0) methods.push(m);
+      });
+      r.methods = methods;
+      onChange();
+    }
+    extraIn.addEventListener("input", sync);
+
+    var http10 = el("input", { type: "checkbox", checked: !!r.block_http10 });
+    http10.addEventListener("change", function () { r.block_http10 = http10.checked; onChange(); });
     var status = el("select", { "aria-label": "Answer for refused requests on " + h.domain },
       [[405, "405 Method Not Allowed"], [403, "403 Forbidden"], [400, "400 Bad Request"], [404, "404 Not Found"]].map(function (o) {
         var opt = el("option", { value: String(o[0]), text: o[1] });
-        opt.selected = h.rule.status === o[0];
+        opt.selected = r.status === o[0];
         return opt;
       }));
-    [extraIn, http10, status].forEach(function (i) {
-      i.addEventListener("input", function () { setDirty(true); });
-      i.addEventListener("change", function () { setDirty(true); });
-    });
-    enabled.addEventListener("change", function () { body.hidden = !enabled.checked; setDirty(true); });
+    status.addEventListener("change", function () { r.status = parseInt(status.value, 10); onChange(); });
 
-    // Collects the rule of this card when saving.
-    h.collect = function () {
-      var methods = methodBoxes.filter(function (b) { return b.cb.checked; }).map(function (b) { return b.m; });
-      extraIn.value.split(/[\s,]+/).forEach(function (m) { if (m) methods.push(m.toUpperCase()); });
-      return { enabled: enabled.checked, methods: methods, block_http10: http10.checked, status: parseInt(status.value, 10) };
-    };
-    h.touched = function () { return h.has_rule || enabled.checked; };
-
-    body.appendChild(el("div", { class: "row" }, [el("span", { class: "lbl", text: "Allowed methods" }),
-      el("div", { class: "methods" }, methodBoxes.map(function (b) { return b.label; }))]));
-    body.appendChild(el("div", { class: "row" }, [el("span", { class: "lbl", text: "Other methods" }), extraIn]));
-    body.appendChild(el("div", { class: "row" }, [el("span", { class: "lbl", text: "Refused requests" }), status,
+    fields.appendChild(el("div", { class: "row" }, [el("span", { class: "lbl", text: "Allowed methods" }),
+      el("div", { class: "methods" }, boxes.map(function (cb) { return el("label", {}, [cb, el("span", { text: cb.value })]); }))]));
+    fields.appendChild(el("div", { class: "row" }, [el("span", { class: "lbl", text: "Other methods" }), extraIn]));
+    fields.appendChild(el("div", { class: "row" }, [el("span", { class: "lbl", text: "Refused requests" }), status,
       el("label", {}, [http10, el("span", { text: "also refuse HTTP/1.0" })])]));
 
-    var chips = [];
-    if (!h.known) chips.push(el("span", { class: "chip bad", text: "host no longer in Zoraxy" }));
-    if (h.disabled) chips.push(el("span", { class: "chip", text: "host disabled" }));
     var st = h.stats;
-    if (h.rule.enabled && h.known && !h.disabled) {
-      chips.push(st && st.last_seen
-        ? el("span", { class: "chip ok", text: "filtering · last request " + ago(st.last_seen) })
-        : el("span", { class: "chip warn", text: "no request seen yet — check the host tag" }));
-    }
-    (h.tags || []).forEach(function (t) { chips.push(el("span", { class: "chip", text: "tag: " + t })); });
-
-    var statsLine = null;
-    if (st) {
-      statsLine = el("div", { class: "stats", text: "Since plugin start: " + st.allowed + " passed, " + st.blocked + " refused" +
-        (st.last_blocked ? " · last refused: " + st.last_blocked : "") });
-    }
-
-    return el("section", { class: "host" + (h.rule.enabled ? "" : " off"), "aria-label": h.domain }, [
-      el("div", { class: "head" }, [
-        el("div", {}, [
-          el("div", { class: "name", text: h.domain }),
-          (h.aliases && h.aliases.length) ? el("div", { class: "aliases", text: "aliases: " + h.aliases.join(", ") }) : null
-        ]),
-        el("div", {}, chips),
-        el("span", { class: "spacer" }),
-        el("label", { class: "switch", for: id + "-on" }, [enabled, el("span", { text: "Filter methods" })])
-      ]),
-      body,
-      statsLine
+    return el("div", { class: "body" }, [
+      el("div", { class: "row" }, [el("label", { class: "switch" }, [enabled, el("span", { text: "Filter methods on this host" })])]),
+      fields,
+      (h.aliases && h.aliases.length) ? el("div", { class: "aliases", text: "Aliases (same rule): " + h.aliases.join(", ") }) : null,
+      st ? el("div", { class: "stats", text: "Since plugin start: " + st.allowed + " passed, " + st.blocked + " refused" +
+        (st.last_blocked ? " · last refused: " + st.last_blocked : "") }) : null
     ]);
   }
 
+  function renderHost(h) {
+    var box = el("section", { class: "host", "aria-label": h.domain });
+    var caret = el("span", { class: "caret", "aria-hidden": "true" });
+    var sum = el("span", { class: "summary" });
+    var chips = el("span", {});
+    var head = el("button", { class: "head", type: "button" }, [caret, el("span", { class: "name", text: h.domain }), chips, el("span", { class: "spacer" }), sum]);
+    var editor = null;
+
+    function paintHead() {
+      caret.textContent = open[h.domain] ? "▾" : "▸";
+      head.setAttribute("aria-expanded", open[h.domain] ? "true" : "false");
+      sum.textContent = summary(h);
+      sum.className = "summary" + (h.rule.enabled ? " on" : "");
+      box.classList.toggle("changed", isChanged(h));
+      chips.textContent = "";
+      if (isChanged(h)) chips.appendChild(el("span", { class: "chip", text: "unsaved" }));
+      if (!h.known) chips.appendChild(el("span", { class: "chip bad", text: "host no longer in Zoraxy" }));
+      if (h.disabled) chips.appendChild(el("span", { class: "chip", text: "host disabled" }));
+      if (h.rule.enabled && h.known && !h.disabled) {
+        chips.appendChild(h.stats && h.stats.last_seen
+          ? el("span", { class: "chip ok", text: "filtering · last request " + ago(h.stats.last_seen) })
+          : el("span", { class: "chip warn", text: "no request seen yet — check the host tag" }));
+      }
+    }
+    function paintBody() {
+      if (editor) { box.removeChild(editor); editor = null; }
+      if (open[h.domain]) { editor = renderEditor(h, function () { paintHead(); refreshBar(); }); box.appendChild(editor); }
+    }
+    head.addEventListener("click", function () { open[h.domain] = !open[h.domain]; paintHead(); paintBody(); });
+    box.appendChild(head);
+    paintHead(); paintBody();
+    return box;
+  }
+
   function render() {
+    var words = $("q").value.toLowerCase().split(/\s+/).filter(Boolean);
+    var list = state.hosts.filter(function (h) { return matches(h, words, $("show").value); });
     var box = $("hosts");
     box.textContent = "";
+    list.slice(0, shown).forEach(function (h) { box.appendChild(renderHost(h)); });
+    if (!list.length) box.appendChild(el("p", { class: "lead", text: state.hosts.length ? "No host matches." : "No proxy hosts found." }));
+    $("more").hidden = list.length <= shown;
+    $("more").textContent = "Show more (" + (list.length - shown) + " hidden)";
+    var filtered = state.hosts.filter(function (h) { return h.rule.enabled; }).length;
+    $("count").textContent = "Showing " + Math.min(shown, list.length) + " of " + list.length +
+      (list.length !== state.hosts.length ? " matching" : "") + " · " + state.hosts.length + " hosts, " + filtered + " filtered";
+  }
+
+  function renderStatic() {
     $("error").hidden = !state.hosts_error;
     $("error").textContent = state.hosts_error ? "Could not read the host list from Zoraxy (existing rules keep working): " + state.hosts_error : "";
     var note = $("tagnote");
     note.textContent = "";
     note.appendChild(document.createTextNode("Zoraxy sends a host's requests to this plugin only if the host carries a tag this plugin is attached to. " +
-      "Attach the plugin to a tag (Plugins → groups; suggested tag: "));
+      "Attach the plugin to a tag in the Plugin Manager (suggested tag: "));
     note.appendChild(el("code", { text: state.suggested_tag }));
-    note.appendChild(document.createTextNode(") and add that tag to each host you filter here."));
-    if (!state.hosts.length) box.appendChild(el("p", { class: "lead", text: "No proxy hosts found." }));
-    state.hosts.forEach(function (h) { box.appendChild(renderHost(h)); });
+    note.appendChild(document.createTextNode(") and add that tag to each host you filter here (HTTP Proxy → edit host → Tags)."));
   }
 
   function load() {
     return fetch("api/state", { credentials: "same-origin" })
       .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
-      .then(function (s) { state = s; render(); setDirty(false); setMsg("", ""); })
+      .then(function (s) {
+        s.hosts.forEach(function (h) { h.rule.methods = h.rule.methods || []; h.orig = ruleKey(h.rule); });
+        state = s;
+        renderStatic(); render(); setMsg("", ""); refreshBar();
+      })
       .catch(function (e) { setMsg("Cannot load: " + e.message, "bad"); });
   }
 
+  $("q").addEventListener("input", function () { shown = PAGE; render(); });
+  $("show").addEventListener("change", function () { shown = PAGE; render(); });
+  $("more").addEventListener("click", function () { shown += PAGE; render(); });
+
   $("save").addEventListener("click", function () {
     var rules = {};
-    state.hosts.forEach(function (h) { if (h.touched()) rules[h.domain] = h.collect(); });
+    state.hosts.forEach(function (h) { if (h.has_rule || isChanged(h)) rules[h.domain] = h.rule; });
     $("save").disabled = true;
     fetch("api/save", {
       method: "POST", credentials: "same-origin",
@@ -223,9 +302,13 @@
       .catch(function (e) { setMsg("Not saved: " + e.message, "bad"); $("save").disabled = false; });
   });
   $("reload").addEventListener("click", function () {
-    if (!dirty || confirm("Discard unsaved changes?")) load();
+    if (!changedCount() || confirm("Discard unsaved changes?")) load();
   });
-  window.addEventListener("beforeunload", function (e) { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
+  window.addEventListener("beforeunload", function (e) { if (changedCount()) { e.preventDefault(); e.returnValue = ""; } });
+
+  // Deep link: .../#app.example.com opens the page already searching that host.
+  var wanted = decodeURIComponent(location.hash.replace(/^#/, ""));
+  if (wanted) { $("q").value = wanted; open[wanted.toLowerCase()] = true; }
 
   load();
 })();

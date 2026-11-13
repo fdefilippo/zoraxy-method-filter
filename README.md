@@ -20,7 +20,8 @@ Tested with Zoraxy v3.3.4.
 - Optional refusal of HTTP/1.0 requests, per host.
 - Selectable answer for refused requests: `405` (with an `Allow` header), `403`, `400` or `404`.
 - Alias hostnames use the rule of their host. Hosts without an enabled rule are not filtered.
-- Everything is configured from the plugin UI inside Zoraxy; rules apply as soon as they are
+- Everything is configured from the plugin UI inside Zoraxy, with search and filters so it stays
+  usable with hundreds of hosts (a `#hostname` in the page URL opens it on that host); rules apply as soon as they are
   saved. No file to edit.
 - Per-host counters (passed / refused, last refused request) to see that the filter is working.
 
